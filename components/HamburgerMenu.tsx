@@ -1,28 +1,53 @@
+"use client"
+
 import type React from "react"
 import { Button } from "@/components/ui/button"
-import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet"
-import { Menu } from "lucide-react"
+import {
+  Sheet,
+  SheetContent,
+  SheetDescription,
+  SheetHeader,
+  SheetTitle,
+  SheetTrigger,
+  SheetClose,
+} from "@/components/ui/sheet"
+import { Menu, X } from "lucide-react"
 
 const HamburgerMenu: React.FC = () => {
   return (
     <Sheet>
       <SheetTrigger asChild>
-        <Button variant="outline" size="icon" className="bg-gray-100 hover:bg-gray-200 text-gray-800">
+        <Button variant="outline" size="icon" className="fixed top-4 left-4 z-20 bg-white">
           <Menu className="h-4 w-4" />
         </Button>
       </SheetTrigger>
-      <SheetContent className="bg-white text-gray-800">
+      <SheetContent side="left" className="w-[250px] sm:w-[300px]">
         <SheetHeader>
-          <SheetTitle className="text-gray-800">Menu</SheetTitle>
-          <SheetDescription className="text-gray-600">Access additional features and settings.</SheetDescription>
+          <SheetTitle>Menu</SheetTitle>
+          <SheetDescription>Access additional features and settings.</SheetDescription>
         </SheetHeader>
         <div className="grid gap-4 py-4">
-          <Button className="bg-gray-100 hover:bg-gray-200 text-gray-800">New Project</Button>
-          <Button className="bg-gray-100 hover:bg-gray-200 text-gray-800">Open Project</Button>
-          <Button className="bg-gray-100 hover:bg-gray-200 text-gray-800">Save Project</Button>
-          <Button className="bg-gray-100 hover:bg-gray-200 text-gray-800">Export</Button>
-          <Button className="bg-gray-100 hover:bg-gray-200 text-gray-800">Settings</Button>
+          <SheetClose asChild>
+            <Button className="w-full">New Project</Button>
+          </SheetClose>
+          <SheetClose asChild>
+            <Button className="w-full">Open Project</Button>
+          </SheetClose>
+          <SheetClose asChild>
+            <Button className="w-full">Save Project</Button>
+          </SheetClose>
+          <SheetClose asChild>
+            <Button className="w-full">Export</Button>
+          </SheetClose>
+          <SheetClose asChild>
+            <Button className="w-full">Settings</Button>
+          </SheetClose>
         </div>
+        <SheetClose asChild>
+          <Button variant="outline" size="icon" className="absolute top-4 right-4">
+            <X className="h-4 w-4" />
+          </Button>
+        </SheetClose>
       </SheetContent>
     </Sheet>
   )

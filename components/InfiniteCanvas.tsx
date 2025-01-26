@@ -1,7 +1,10 @@
+"use client"
+
 import type React from "react"
 import { useRef, useState, useEffect, useCallback } from "react"
 import { Stage, Layer, Line, Rect, Circle } from "react-konva"
 import type Konva from "konva"
+import { motion } from "framer-motion"
 
 interface InfiniteCanvasProps {
   selectedTool: string
@@ -17,7 +20,7 @@ const InfiniteCanvas: React.FC<InfiniteCanvasProps> = ({ selectedTool, brushSize
   const [lines, setLines] = useState<any[]>([])
   const [shapes, setShapes] = useState<any[]>([])
   const [isDrawing, setIsDrawing] = useState(false)
-  const [windowDimensions, setWindowDimensions] = useState({ width: 0, height: 0 })
+  const [stageSize, setStageSize] = useState({ width: 1000, height: 1000 })
 
   const handleWheel = useCallback(
     (e: Konva.KonvaEventObject<WheelEvent>) => {
@@ -107,69 +110,77 @@ const InfiniteCanvas: React.FC<InfiniteCanvasProps> = ({ selectedTool, brushSize
 
   useEffect(() => {
     const checkSize = () => {
-      if (typeof window !== "undefined") {
-        setWindowDimensions({
-          width: window.innerWidth,
-          height: window.innerHeight,
-        })
-      }
+      setStageSize({
+        width: window.innerWidth,
+        height: window.innerHeight,
+      })
     }
 
-    window.addEventListener("resize", checkSize)
     checkSize()
+    window.addEventListener("resize", checkSize)
 
     return () => window.removeEventListener("resize", checkSize)
   }, [])
 
   return (
-    <Stage
-      ref={stageRef}
-      width={windowDimensions.width}
-      height={windowDimensions.height}
-      onWheel={handleWheel}
-      scaleX={scale}
-      scaleY={scale}
-      x={position.x}
-      y={position.y}
-      onMouseDown={handleMouseDown}
-      onMousemove={handleMouseMove}
-      onMouseup={handleMouseUp}
-      onDragEnd={handleDragEnd}
-      draggable
+    <motion.div
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      transition={{ duration: 0.5 }}
+      className="w-full h-full"
     >
-      <Layer>
-        <Rect x={-5000} y={-5000} width={10000} height={10000} fill="#f0f0f0" />
-        {lines.map((line, i) => (
-          <Line
-            key={i}
-            points={line.points}
-            stroke={line.color}
-            strokeWidth={line.size}
-            tension={0.5}
-            lineCap="round"
-            lineJoin="round"
-            globalCompositeOperation={line.tool === "eraser" ? "destination-out" : "source-over"}
-          />
-        ))}
-        {shapes.map((shape, i) => {
-          if (shape.tool === "rectangle") {
-            return <Rect key={i} x={shape.x} y={shape.y} width={shape.width} height={shape.height} fill={shape.color} />
-          } else if (shape.tool === "circle") {
-            return (
-              <Circle
-                key={i}
-                x={shape.x + shape.width / 2}
-                y={shape.y + shape.height / 2}
-                radius={Math.max(Math.abs(shape.width), Math.abs(shape.height)) / 2}
-                fill={shape.color}
-              />
-            )
-          }
-          return null
-        })}
-      </Layer>
-    </Stage>
+      <Stage
+        ref={stageRef}
+        width={stageSize.width}
+        height={stageSize.height}
+        onWheel={handleWheel}
+        scaleX={scale}
+        scaleY={scale}
+        x={position.x}
+        y={position.y}
+        onMouseDown={handleMouseDown}
+        onMousemove={handleMouseMove}
+        onMouseup={handleMouseUp}
+        onDragEnd={handleDragEnd}
+        draggable
+      >
+        <Layer>
+          <Rect x={-5000} y={-5000} width={10000} height={10000} fill="#f0f0f0" />
+          {lines.map((line, i) => (
+            <Line
+              key={i}
+              points={line.points}
+              stroke={line.color}
+              strokeWidth={line.size}
+              tension={0.5}
+              lineCap="round"
+              lineJoin="round"
+              globalCompositeOperation={line.tool === "eraser" ? "destination-out" : "source-over"}
+            />
+          ))}
+          {shapes.map((shape, i) => {
+            if (shape.tool === "rectangle") {
+              return (
+                <Rect key={i} x={shape.x} y={shape.y} width={shape.width} height={shape.height} fill={shape.color} />
+              )
+            } else if (shape.tool === "circle") {
+              return (
+                <Circle
+                  key={i}
+                  x={shape.x + shape.width / 2}
+                  y={shape.y + shape.height / 2}
+                  radius={Math.max(Math.abs(shape.width), Math.abs(shape.height)) / 2}
+                  fill={shape.color}
+                />
+              )
+            }
+            return null
+          })}
+        </Layer>
+      </Stage>
+    </motion.div>
   )
 }
 
 export default InfiniteCanvas
+

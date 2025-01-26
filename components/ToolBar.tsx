@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button"
 import { Popover, PopoverTrigger, PopoverContent } from "@/components/ui/popover"
 import { Slider } from "@/components/ui/slider"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
+import { motion } from "framer-motion"
 
 interface ToolBarProps {
   selectedTool: string
@@ -22,129 +23,50 @@ const ToolBar: React.FC<ToolBarProps> = ({
   brushColor,
   setBrushColor,
 }) => {
+  const toolButtons = [
+    { name: "brush", icon: Brush },
+    { name: "eraser", icon: Eraser },
+    { name: "rectangle", icon: Square },
+    { name: "circle", icon: Circle },
+    { name: "line", icon: Minus },
+    { name: "text", icon: Type },
+    { name: "image", icon: Image },
+  ]
+
   return (
     <TooltipProvider>
-      <div className="flex items-center space-x-2 p-4 bg-white shadow-md rounded-lg">
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <Button
-              variant={selectedTool === "brush" ? "default" : "outline"}
-              size="icon"
-              onClick={() => setSelectedTool("brush")}
-              className="bg-gray-100 hover:bg-gray-200 text-gray-800"
-            >
-              <Brush className="h-4 w-4" />
-            </Button>
-          </TooltipTrigger>
-          <TooltipContent>
-            <p>Brush</p>
-          </TooltipContent>
-        </Tooltip>
-
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <Button
-              variant={selectedTool === "eraser" ? "default" : "outline"}
-              size="icon"
-              onClick={() => setSelectedTool("eraser")}
-              className="bg-gray-100 hover:bg-gray-200 text-gray-800"
-            >
-              <Eraser className="h-4 w-4" />
-            </Button>
-          </TooltipTrigger>
-          <TooltipContent>
-            <p>Eraser</p>
-          </TooltipContent>
-        </Tooltip>
-
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <Button
-              variant={selectedTool === "rectangle" ? "default" : "outline"}
-              size="icon"
-              onClick={() => setSelectedTool("rectangle")}
-              className="bg-gray-100 hover:bg-gray-200 text-gray-800"
-            >
-              <Square className="h-4 w-4" />
-            </Button>
-          </TooltipTrigger>
-          <TooltipContent>
-            <p>Rectangle</p>
-          </TooltipContent>
-        </Tooltip>
-
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <Button
-              variant={selectedTool === "circle" ? "default" : "outline"}
-              size="icon"
-              onClick={() => setSelectedTool("circle")}
-              className="bg-gray-100 hover:bg-gray-200 text-gray-800"
-            >
-              <Circle className="h-4 w-4" />
-            </Button>
-          </TooltipTrigger>
-          <TooltipContent>
-            <p>Circle</p>
-          </TooltipContent>
-        </Tooltip>
-
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <Button
-              variant={selectedTool === "line" ? "default" : "outline"}
-              size="icon"
-              onClick={() => setSelectedTool("line")}
-              className="bg-gray-100 hover:bg-gray-200 text-gray-800"
-            >
-              <Minus className="h-4 w-4" />
-            </Button>
-          </TooltipTrigger>
-          <TooltipContent>
-            <p>Line</p>
-          </TooltipContent>
-        </Tooltip>
-
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <Button
-              variant={selectedTool === "text" ? "default" : "outline"}
-              size="icon"
-              onClick={() => setSelectedTool("text")}
-              className="bg-gray-100 hover:bg-gray-200 text-gray-800"
-            >
-              <Type className="h-4 w-4" />
-            </Button>
-          </TooltipTrigger>
-          <TooltipContent>
-            <p>Text</p>
-          </TooltipContent>
-        </Tooltip>
-
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <Button
-              variant={selectedTool === "image" ? "default" : "outline"}
-              size="icon"
-              onClick={() => setSelectedTool("image")}
-              className="bg-gray-100 hover:bg-gray-200 text-gray-800"
-            >
-              <Image className="h-4 w-4" />
-            </Button>
-          </TooltipTrigger>
-          <TooltipContent>
-            <p>Image</p>
-          </TooltipContent>
-        </Tooltip>
+      <motion.div
+        initial={{ y: -50, opacity: 0 }}
+        animate={{ y: 0, opacity: 1 }}
+        transition={{ duration: 0.5 }}
+        className="flex items-center space-x-2 p-4 bg-card shadow-md rounded-lg m-4"
+      >
+        {toolButtons.map((tool) => (
+          <Tooltip key={tool.name}>
+            <TooltipTrigger asChild>
+              <Button
+                variant={selectedTool === tool.name ? "default" : "outline"}
+                size="icon"
+                onClick={() => setSelectedTool(tool.name)}
+                className={`bg-${selectedTool === tool.name ? "primary" : "card"} text-${selectedTool === tool.name ? "primary" : "card"}-foreground hover:bg-${selectedTool === tool.name ? "primary/90" : "card/90"}`}
+              >
+                <tool.icon className="h-4 w-4" />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>
+              <p>{tool.name.charAt(0).toUpperCase() + tool.name.slice(1)}</p>
+            </TooltipContent>
+          </Tooltip>
+        ))}
 
         <Popover>
           <PopoverTrigger asChild>
-            <Button variant="outline" className="w-[80px] bg-gray-100 hover:bg-gray-200 text-gray-800">
+            <Button variant="outline" className="w-[80px] bg-card hover:bg-card/90 text-foreground">
               <div className="w-4 h-4 rounded-full mr-2" style={{ backgroundColor: brushColor }}></div>
               Color
             </Button>
           </PopoverTrigger>
-          <PopoverContent className="w-[200px] bg-white/10 border-white/20">
+          <PopoverContent className="w-[200px] bg-card border-border">
             <input
               type="color"
               value={brushColor}
@@ -156,11 +78,11 @@ const ToolBar: React.FC<ToolBarProps> = ({
 
         <Popover>
           <PopoverTrigger asChild>
-            <Button variant="outline" className="w-[80px] bg-gray-100 hover:bg-gray-200 text-gray-800">
+            <Button variant="outline" className="w-[80px] bg-card hover:bg-card/90 text-foreground">
               Size: {brushSize}
             </Button>
           </PopoverTrigger>
-          <PopoverContent className="w-[200px] bg-white/10 border-white/20">
+          <PopoverContent className="w-[200px] bg-card border-border">
             <Slider
               min={1}
               max={50}
@@ -171,7 +93,7 @@ const ToolBar: React.FC<ToolBarProps> = ({
             />
           </PopoverContent>
         </Popover>
-      </div>
+      </motion.div>
     </TooltipProvider>
   )
 }
