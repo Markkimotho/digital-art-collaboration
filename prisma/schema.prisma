@@ -1,0 +1,47 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../generated/prisma"
+}
+
+datasource db {
+  provider = "sqlite"
+}
+
+model Room {
+  id           String        @id @default(cuid())
+  name         String        @default("Untitled Canvas")
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+  canvasState  String        @default("[]")
+  layers       Layer[]
+  versions     Version[]
+  chatMessages ChatMessage[]
+}
+
+model Layer {
+  id      String  @id
+  roomId  String
+  room    Room    @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  name    String
+  locked  Boolean @default(false)
+  visible Boolean @default(true)
+  order   Int     @default(0)
+}
+
+model Version {
+  id          String   @id @default(cuid())
+  roomId      String
+  room        Room     @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  label       String
+  canvasState String
+  createdAt   DateTime @default(now())
+}
+
+model ChatMessage {
+  id        String   @id @default(cuid())
+  roomId    String
+  room      Room     @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  author    String
+  text      String
+  createdAt DateTime @default(now())
+}

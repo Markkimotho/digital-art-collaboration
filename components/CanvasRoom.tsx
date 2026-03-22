@@ -1,0 +1,279 @@
+'use client'
+
+import React, { useState, useEffect, useRef, useCallback } from 'react'
+import { io, Socket } from 'socket.io-client'
+import { motion } from 'framer-motion'
+import InfiniteCanvas from './InfiniteCanvas'
+import ToolBar from './ToolBar'
+import CollapsibleSidebar from './CollapsibleSidebar'
+import HamburgerMenu from './HamburgerMenu'
+import type {
+  CanvasElement, LayerData, VersionData, ChatMessage,
+  CursorData, StrokeData, ShapeData, TextData,
+  CanvasType, GridType,
+} from '@/types/canvas'
+
+interface CanvasRoomProps {
+  roomId: string
+  initialCanvasState: string
+  initialLayers: LayerData[]
+  initialVersions: VersionData[]
+  initialChat: ChatMessage[]
+}
+
+const USER_COLORS = ['#4f7df3', '#a855f7', '#ec4899', '#f59e0b', '#10b981', '#06b6d4', '#f97316']
+
+export default function CanvasRoom({
+  roomId, initialCanvasState, initialLayers, initialVersions, initialChat,
+}: CanvasRoomProps) {
+  const socketRef = useRef<Socket | null>(null)
+  const [userName, setUserName]       = useState('')
+  const [userColor, setUserColor]     = useState(USER_COLORS[0])
+  const [isConnected, setIsConnected] = useState(false)
+  const [userCount, setUserCount]     = useState(1)
+
+  // Canvas elements
+  const [canvasElements, setCanvasElements] = useState<CanvasElement[]>(() => {
+    try { return JSON.parse(initialCanvasState) } catch { return [] }
+  })
+
+  // Tool state
+  const [selectedTool, setSelectedTool] = useState('brush')
+  const [brushSize, setBrushSize]       = useState(5)
+  const [brushColor, setBrushColor]     = useState('#1a1410')
+  const [fontSize, setFontSize]         = useState(24)
+
+  // Canvas appearance
+  const [canvasType, setCanvasType] = useState<CanvasType>('plain')
+  const [gridType, setGridType]     = useState<GridType>('none')
+
+  // Layers
+  const [layers, setLayers] = useState<LayerData[]>(
+    initialLayers.length > 0
+      ? initialLayers
+      : [{ id: crypto.randomUUID(), name: 'Layer 1', locked: false, visible: true, order: 0 }]
+  )
+  const [selectedLayer, setSelectedLayer] = useState(() =>
+    initialLayers.length > 0 ? initialLayers[0].id : ''
+  )
+
+  const [versions, setVersions] = useState<VersionData[]>(initialVersions)
+  const [chat, setChat]         = useState<ChatMessage[]>(initialChat)
+  const [cursors, setCursors]   = useState<CursorData[]>([])
+
+  // Nav open state — shared with ToolBar so it can shift away
+  const [leftNavOpen, setLeftNavOpen]   = useState(false)
+  const [rightNavOpen, setRightNavOpen] = useState(false)
+
+  // Socket setup
+  useEffect(() => {
+    let name = localStorage.getItem('artCollab_userName')
+    if (!name) {
+      name = 'Artist ' + Math.floor(Math.random() * 9000 + 1000)
+      localStorage.setItem('artCollab_userName', name)
+    }
+    const colorIdx = Math.floor(Math.random() * USER_COLORS.length)
+    setUserName(name)
+    setUserColor(USER_COLORS[colorIdx])
+
+    const socket = io(window.location.origin, { transports: ['websocket', 'polling'] })
+    socketRef.current = socket
+
+    socket.on('connect', () => {
+      setIsConnected(true)
+      socket.emit('room:join', { roomId, userName: name })
+    })
+
+    socket.on('room:state', ({ canvasState, layers: serverLayers, versions: serverVersions, chat: serverChat }) => {
+      try {
+        const parsed: CanvasElement[] = JSON.parse(canvasState)
+        const deduped = Array.from(new Map(parsed.map(el => [el.id, el])).values())
+        setCanvasElements(deduped)
+      } catch {}
+      if (serverLayers.length > 0) {
+        setLayers(serverLayers)
+        setSelectedLayer(serverLayers[0].id)
+      }
+      setVersions(serverVersions.map((v: any) => ({ ...v, createdAt: new Date(v.createdAt).toISOString() })))
+      setChat(serverChat.map((m: any) => ({ ...m, createdAt: new Date(m.createdAt).toISOString() })))
+    })
+
+    socket.on('room:user-joined', ({ userCount }: { userName: string; userCount: number }) => setUserCount(userCount))
+    socket.on('room:user-count',  ({ userCount }: { userCount: number }) => setUserCount(userCount))
+    socket.on('room:user-left',   ({ userCount }: { userCount: number }) => setUserCount(userCount))
+
+    socket.on('draw:stroke-start', ({ stroke }: { stroke: StrokeData }) => {
+      setCanvasElements(prev =>
+        prev.some(el => el.id === stroke.id) ? prev : [...prev, { ...stroke, remote: true, pending: true }]
+      )
+    })
+    socket.on('draw:stroke-update', ({ strokeId, points, pressures }: { strokeId: string; points: number[]; pressures?: number[] }) => {
+      setCanvasElements(prev =>
+        prev.map(el => (el.id === strokeId ? { ...el, points, ...(pressures ? { pressures } : {}) } as StrokeData : el))
+      )
+    })
+    socket.on('draw:stroke-end', ({ strokeId }: { strokeId: string }) => {
+      setCanvasElements(prev =>
+        prev.map(el => (el.id === strokeId ? { ...el, pending: false } as StrokeData : el))
+      )
+    })
+    socket.on('draw:shape-add', ({ shape }: { shape: ShapeData }) => {
+      setCanvasElements(prev => [...prev, shape])
+    })
+    socket.on('draw:text-add', ({ text }: { text: TextData }) => {
+      setCanvasElements(prev =>
+        prev.some(el => el.id === text.id) ? prev : [...prev, text]
+      )
+    })
+    socket.on('draw:element-move', ({ elementId, offsetX, offsetY }: { elementId: string; offsetX: number; offsetY: number }) => {
+      setCanvasElements(prev =>
+        prev.map(el => el.id === elementId ? { ...el, offsetX, offsetY } : el)
+      )
+    })
+    socket.on('draw:clear', ({ layerId }: { layerId?: string }) => {
+      if (layerId) setCanvasElements(prev => prev.filter(el => el.layerId !== layerId))
+      else setCanvasElements([])
+    })
+    socket.on('cursor:positions', ({ cursors: incoming }: { cursors: CursorData[] }) => {
+      setCursors(prev => {
+        const filtered = prev.filter(c => !incoming.find(ic => ic.userId === c.userId))
+        return [...filtered, ...incoming]
+      })
+    })
+    socket.on('layer:updated', ({ layers: serverLayers }: { layers: LayerData[] }) => {
+      setLayers(serverLayers)
+    })
+    socket.on('version:saved', ({ version }: { version: any }) => {
+      setVersions(prev => [{ ...version, createdAt: new Date(version.createdAt).toISOString() }, ...prev])
+    })
+    socket.on('version:reverted', ({ canvasState }: { canvasState: string }) => {
+      try { setCanvasElements(JSON.parse(canvasState)) } catch {}
+    })
+    socket.on('chat:message', (message: any) => {
+      setChat(prev => [...prev, { ...message, createdAt: new Date(message.createdAt).toISOString() }])
+    })
+    socket.on('disconnect', () => setIsConnected(false))
+
+    return () => { socket.disconnect() }
+  }, [roomId])
+
+  const emitStrokeStart  = useCallback((stroke: StrokeData) => {
+    socketRef.current?.emit('draw:stroke-start', { roomId, stroke })
+  }, [roomId])
+  const emitStrokeUpdate = useCallback((strokeId: string, points: number[], pressures?: number[]) => {
+    socketRef.current?.emit('draw:stroke-update', { roomId, strokeId, points, pressures })
+  }, [roomId])
+  const emitStrokeEnd    = useCallback((stroke: StrokeData) => {
+    socketRef.current?.emit('draw:stroke-end', { roomId, stroke })
+  }, [roomId])
+  const emitShapeAdd     = useCallback((shape: ShapeData) => {
+    socketRef.current?.emit('draw:shape-add', { roomId, shape })
+  }, [roomId])
+  const emitTextAdd      = useCallback((text: TextData) => {
+    socketRef.current?.emit('draw:text-add', { roomId, text })
+  }, [roomId])
+  const emitElementMove  = useCallback((elementId: string, offsetX: number, offsetY: number) => {
+    socketRef.current?.emit('draw:element-move', { roomId, elementId, offsetX, offsetY })
+  }, [roomId])
+  const emitCursorMove   = useCallback((x: number, y: number) => {
+    socketRef.current?.emit('cursor:move', { roomId, x, y, userName })
+  }, [roomId, userName])
+
+  const handleLayerAdd    = useCallback(() => {
+    const layer: LayerData = {
+      id: crypto.randomUUID(), name: `Layer ${layers.length + 1}`,
+      locked: false, visible: true, order: layers.length,
+    }
+    socketRef.current?.emit('layer:add', { roomId, layer })
+  }, [roomId, layers.length])
+  const handleLayerUpdate = useCallback((layer: LayerData) => {
+    socketRef.current?.emit('layer:update', { roomId, layer })
+  }, [roomId])
+  const handleLayerDelete = useCallback((layerId: string) => {
+    socketRef.current?.emit('layer:delete', { roomId, layerId })
+  }, [roomId])
+  const handleSaveVersion   = useCallback((label: string) => {
+    socketRef.current?.emit('version:save', { roomId, label })
+  }, [roomId])
+  const handleRevertVersion = useCallback((versionId: string) => {
+    socketRef.current?.emit('version:revert', { roomId, versionId })
+  }, [roomId])
+  const handleSendMessage   = useCallback((text: string) => {
+    socketRef.current?.emit('chat:send', { roomId, text, author: userName })
+  }, [roomId, userName])
+  const handleClearCanvas   = useCallback((layerId?: string) => {
+    socketRef.current?.emit('draw:clear', { roomId, layerId })
+    if (layerId) setCanvasElements(prev => prev.filter(el => el.layerId !== layerId))
+    else setCanvasElements([])
+  }, [roomId])
+
+  return (
+    <motion.div
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      transition={{ duration: 0.4 }}
+      className="relative w-full h-screen overflow-hidden"
+    >
+      <div className="absolute inset-0">
+        <InfiniteCanvas
+          selectedTool={selectedTool}
+          brushSize={brushSize}
+          brushColor={brushColor}
+          fontSize={fontSize}
+          selectedLayer={selectedLayer}
+          canvasElements={canvasElements}
+          setCanvasElements={setCanvasElements}
+          cursors={cursors}
+          onStrokeStart={emitStrokeStart}
+          onStrokeUpdate={emitStrokeUpdate}
+          onStrokeEnd={emitStrokeEnd}
+          onShapeAdd={emitShapeAdd}
+          onTextAdd={emitTextAdd}
+          onElementMove={emitElementMove}
+          onCursorMove={emitCursorMove}
+          layers={layers}
+          canvasType={canvasType}
+          gridType={gridType}
+        />
+      </div>
+
+      <HamburgerMenu roomId={roomId} onOpenChange={setLeftNavOpen} />
+
+      <ToolBar
+        selectedTool={selectedTool}
+        setSelectedTool={setSelectedTool}
+        brushSize={brushSize}
+        setBrushSize={setBrushSize}
+        brushColor={brushColor}
+        setBrushColor={setBrushColor}
+        fontSize={fontSize}
+        setFontSize={setFontSize}
+        onClear={handleClearCanvas}
+        isConnected={isConnected}
+        userCount={userCount}
+        leftNavOpen={leftNavOpen}
+        rightNavOpen={rightNavOpen}
+      />
+
+      <CollapsibleSidebar
+        layers={layers}
+        selectedLayer={selectedLayer}
+        setSelectedLayer={setSelectedLayer}
+        versions={versions}
+        chat={chat}
+        onLayerAdd={handleLayerAdd}
+        onLayerUpdate={handleLayerUpdate}
+        onLayerDelete={handleLayerDelete}
+        onSaveVersion={handleSaveVersion}
+        onRevertVersion={handleRevertVersion}
+        onSendMessage={handleSendMessage}
+        userName={userName}
+        onOpenChange={setRightNavOpen}
+        canvasType={canvasType}
+        setCanvasType={setCanvasType}
+        gridType={gridType}
+        setGridType={setGridType}
+      />
+    </motion.div>
+  )
+}

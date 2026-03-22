@@ -4,65 +4,38 @@
 
 @layer base {
   :root {
-    --background: 220 20% 97%;
-    --foreground: 220 10% 10%;
+    /* Deep forest floor — dark mossy undergrowth */
+    --background: 120 18% 6%;
+    --foreground: 35 18% 80%;
 
-    --card: 0 0% 100%;
-    --card-foreground: 220 10% 10%;
+    --card: 120 14% 9%;
+    --card-foreground: 35 18% 80%;
 
-    --popover: 0 0% 100%;
-    --popover-foreground: 220 10% 10%;
+    --popover: 120 14% 10%;
+    --popover-foreground: 35 18% 80%;
 
-    --primary: 220 90% 50%;
-    --primary-foreground: 220 10% 98%;
+    /* Moss green — earthy, not electric */
+    --primary: 130 28% 40%;
+    --primary-foreground: 35 20% 94%;
 
-    --secondary: 280 90% 50%;
-    --secondary-foreground: 280 10% 98%;
+    --secondary: 25 25% 16%;
+    --secondary-foreground: 35 18% 80%;
 
-    --muted: 220 20% 90%;
-    --muted-foreground: 220 10% 40%;
+    --muted: 120 12% 12%;
+    --muted-foreground: 35 10% 42%;
 
-    --accent: 30 90% 50%;
-    --accent-foreground: 30 10% 98%;
+    --accent: 130 28% 40%;
+    --accent-foreground: 35 20% 94%;
 
-    --destructive: 0 84% 60%;
-    --destructive-foreground: 0 0% 98%;
+    --destructive: 5 58% 46%;
+    --destructive-foreground: 35 20% 94%;
 
-    --border: 220 20% 80%;
-    --input: 220 20% 80%;
-    --ring: 220 90% 50%;
+    --border: 120 10% 14%;
+    --input: 120 10% 14%;
+    --ring: 130 28% 40%;
 
-    --radius: 0.5rem;
-  }
-
-  .dark {
-    --background: 220 20% 10%;
-    --foreground: 220 10% 98%;
-
-    --card: 220 20% 15%;
-    --card-foreground: 220 10% 98%;
-
-    --popover: 220 20% 15%;
-    --popover-foreground: 220 10% 98%;
-
-    --primary: 220 90% 50%;
-    --primary-foreground: 220 10% 98%;
-
-    --secondary: 280 90% 50%;
-    --secondary-foreground: 280 10% 98%;
-
-    --muted: 220 20% 20%;
-    --muted-foreground: 220 10% 70%;
-
-    --accent: 30 90% 50%;
-    --accent-foreground: 30 10% 98%;
-
-    --destructive: 0 84% 60%;
-    --destructive-foreground: 0 0% 98%;
-
-    --border: 220 20% 30%;
-    --input: 220 20% 30%;
-    --ring: 220 90% 50%;
+    /* Handcrafted feel — slightly reduced radius */
+    --radius: 0.375rem;
   }
 }
 
@@ -70,8 +43,126 @@
   * {
     @apply border-border;
   }
+
   body {
     @apply bg-background text-foreground;
+    font-feature-settings: "rlig" 1, "calt" 1;
+  }
+
+  /* Prevent browser autofill from overriding our dark panel backgrounds */
+  textarea, input {
+    color-scheme: dark;
+  }
+
+  /* Rustic panel headings use a slightly more organic feel */
+  .rustic-label {
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    font-size: 0.65rem;
+    font-weight: 600;
   }
 }
 
+@layer components {
+  /* ── Glass panels — dark bark, forest undergrowth ── */
+  .glass {
+    background: rgba(12, 18, 8, 0.84);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border: 1px solid rgba(140, 185, 100, 0.09);
+  }
+
+  .glass-strong {
+    background: rgba(10, 15, 7, 0.93);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+    border: 1px solid rgba(140, 185, 100, 0.11);
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.55), 0 2px 8px rgba(0, 0, 0, 0.35);
+    /* Subtle wood grain on panels */
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='200' height='200'%3E%3Cfilter id='g'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.02 0.8' numOctaves='3' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='200' height='200' filter='url(%23g)' opacity='0.04'/%3E%3C/svg%3E");
+  }
+
+  .glass-panel {
+    background: rgba(9, 14, 6, 0.97);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+    border: 1px solid rgba(140, 185, 100, 0.07);
+    box-shadow: 0 16px 48px rgba(0, 0, 0, 0.6);
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='200' height='200'%3E%3Cfilter id='g'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.02 0.8' numOctaves='3' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='200' height='200' filter='url(%23g)' opacity='0.05'/%3E%3C/svg%3E");
+  }
+
+  /* ── Canvas backgrounds ── */
+  .bg-canvas-plain      { background-color: #cfc09a; }
+  .bg-canvas-kraft      { background-color: #b5956a; }
+  .bg-canvas-watercolor { background-color: #d0c8bc; }
+  .bg-canvas-newsprint  { background-color: #c4bcaa; }
+  .bg-canvas-parchment  { background-color: #d4b896; }
+  .bg-canvas-blackboard { background-color: #1c2a1c; }
+
+  /* Default canvas alias */
+  .bg-canvas { background-color: #cfc09a; }
+
+  /* ── Paper grain — heavy tooth of old sketching paper ── */
+  .paper-grain::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    z-index: 1;
+    opacity: 0.55;
+    background-image:
+      url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='400' height='400'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.62' numOctaves='5' stitchTiles='stitch'/%3E%3CfeColorMatrix type='matrix' values='0 0 0 0 0.28 0 0 0 0 0.20 0 0 0 0 0.10 0 0 0 1 0'/%3E%3C/filter%3E%3Crect width='400' height='400' filter='url(%23n)' opacity='1'/%3E%3C/svg%3E");
+    background-size: 400px 400px;
+    mix-blend-mode: multiply;
+  }
+
+  /* ── Aged vignette — foxed corners, forest shadow edge ── */
+  .paper-vignette::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    z-index: 2;
+    background:
+      radial-gradient(ellipse at 3% 4%,   rgba(80, 48, 10, 0.18) 0%, transparent 42%),
+      radial-gradient(ellipse at 97% 3%,   rgba(70, 42, 8,  0.15) 0%, transparent 38%),
+      radial-gradient(ellipse at 96% 97%,  rgba(75, 45, 10, 0.17) 0%, transparent 40%),
+      radial-gradient(ellipse at 4% 96%,   rgba(68, 40, 8,  0.15) 0%, transparent 36%),
+      radial-gradient(ellipse at center,   transparent 48%, rgba(55, 32, 6, 0.30) 100%);
+  }
+
+  /* Blackboard-specific grain (lighter on dark) */
+  .paper-grain-dark::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    z-index: 1;
+    opacity: 0.25;
+    background-image:
+      url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='400' height='400'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.62' numOctaves='5' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='400' height='400' filter='url(%23n)' opacity='1'/%3E%3C/svg%3E");
+    background-size: 400px 400px;
+    mix-blend-mode: screen;
+  }
+}
+
+@layer utilities {
+  .touch-none {
+    touch-action: none;
+  }
+
+  .scrollbar-thin::-webkit-scrollbar {
+    width: 4px;
+  }
+  .scrollbar-thin::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  .scrollbar-thin::-webkit-scrollbar-thumb {
+    background: rgba(140, 185, 100, 0.14);
+    border-radius: 2px;
+  }
+
+  .text-shadow {
+    text-shadow: 0 1px 4px rgba(0, 0, 0, 0.65);
+  }
+}
