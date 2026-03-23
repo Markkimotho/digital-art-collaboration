@@ -191,9 +191,6 @@ function CanvasSettings({
   gridType: GridType
   setGridType: (t: GridType) => void
 }) {
-  const canvasTypes  = Object.entries(CANVAS_TYPE_CONFIG)  as [CanvasType,  typeof CANVAS_TYPE_CONFIG[CanvasType]][number][]
-  const gridTypes    = Object.entries(GRID_TYPE_CONFIG)    as [GridType,    typeof GRID_TYPE_CONFIG[GridType]][number][]
-
   return (
     <div className="space-y-5">
       {/* Canvas surface */}

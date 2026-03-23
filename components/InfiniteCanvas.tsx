@@ -1,7 +1,7 @@
 'use client'
 
 import React, { useRef, useState, useEffect, useCallback } from 'react'
-import { Stage, Layer, Line, Rect, Circle, Text, Circle as KonvaCircle, Shape } from 'react-konva'
+import { Stage, Layer, Line, Rect, Text, Circle as KonvaCircle, Shape } from 'react-konva'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Crosshair } from 'lucide-react'
 import type Konva from 'konva'
@@ -59,7 +59,7 @@ function GridOverlay({ scale, position, stageSize, gridType, dark }: {
   const dotColor  = dark ? 'rgba(255,255,255,0.22)' : 'rgba(80,55,20,0.32)'
   const startX = Math.floor(left  / spacing) * spacing
   const startY = Math.floor(top   / spacing) * spacing
-  const els: JSX.Element[] = []
+  const els: React.ReactElement[] = []
   if (gridType === 'lines' || gridType === 'grid') {
     for (let y = startY; y <= bottom; y += spacing)
       els.push(<Line key={`h${y}`} points={[left, y, right, y]} stroke={lineColor} strokeWidth={1 / scale} listening={false} />)
@@ -222,6 +222,7 @@ const InfiniteCanvas: React.FC<InfiniteCanvasProps> = ({
   const strokeOpacity = (t: string) => t === 'pencil' ? 0.72 : 1
   const strokeSizeMultiplier = (t: string) => t === 'pen' ? 0.6 : t === 'pencil' ? 0.8 : 1
   const usesPressure = (t: string) => ['brush', 'pencil', 'eraser'].includes(t)
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const usesRibbon   = (t: string) => ['calligraphy'].includes(t) || usesPressure(t)
 
   // ── Stroke start ─────────────────────────────────────────────────────────────

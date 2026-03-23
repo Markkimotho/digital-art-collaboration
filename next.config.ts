@@ -16,6 +16,12 @@ const nextConfig: NextConfig = {
         '.mjs': ['.mts', '.mjs'],
         '.cjs': ['.cts', '.cjs'],
       },
+      // konva's node build imports 'canvas' for SSR — stub it out since
+      // InfiniteCanvas is a client component and canvas is never needed server-side
+      alias: {
+        ...config.resolve.alias,
+        canvas: false,
+      },
     }
 
     if (isServer) {

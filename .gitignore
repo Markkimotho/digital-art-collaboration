@@ -41,3 +41,8 @@ yarn-error.log*
 next-env.d.ts
 
 /generated/prisma
+
+# SQLite database — persisted via Docker volume or k8s PVC, not in source control
+prisma/dev.db
+prisma/dev.db-shm
+prisma/dev.db-wal

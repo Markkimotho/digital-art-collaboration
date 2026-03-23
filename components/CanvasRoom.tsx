@@ -21,14 +21,12 @@ interface CanvasRoomProps {
   initialChat: ChatMessage[]
 }
 
-const USER_COLORS = ['#4f7df3', '#a855f7', '#ec4899', '#f59e0b', '#10b981', '#06b6d4', '#f97316']
 
 export default function CanvasRoom({
   roomId, initialCanvasState, initialLayers, initialVersions, initialChat,
 }: CanvasRoomProps) {
   const socketRef = useRef<Socket | null>(null)
   const [userName, setUserName]       = useState('')
-  const [userColor, setUserColor]     = useState(USER_COLORS[0])
   const [isConnected, setIsConnected] = useState(false)
   const [userCount, setUserCount]     = useState(1)
 
@@ -72,9 +70,7 @@ export default function CanvasRoom({
       name = 'Artist ' + Math.floor(Math.random() * 9000 + 1000)
       localStorage.setItem('artCollab_userName', name)
     }
-    const colorIdx = Math.floor(Math.random() * USER_COLORS.length)
     setUserName(name)
-    setUserColor(USER_COLORS[colorIdx])
 
     const socket = io(window.location.origin, { transports: ['websocket', 'polling'] })
     socketRef.current = socket
@@ -94,8 +90,8 @@ export default function CanvasRoom({
         setLayers(serverLayers)
         setSelectedLayer(serverLayers[0].id)
       }
-      setVersions(serverVersions.map((v: any) => ({ ...v, createdAt: new Date(v.createdAt).toISOString() })))
-      setChat(serverChat.map((m: any) => ({ ...m, createdAt: new Date(m.createdAt).toISOString() })))
+      setVersions(serverVersions.map((v: VersionData) => ({ ...v, createdAt: new Date(v.createdAt as string).toISOString() })))
+      setChat(serverChat.map((m: ChatMessage) => ({ ...m, createdAt: new Date(m.createdAt as string).toISOString() })))
     })
 
     socket.on('room:user-joined', ({ userCount }: { userName: string; userCount: number }) => setUserCount(userCount))
@@ -143,14 +139,14 @@ export default function CanvasRoom({
     socket.on('layer:updated', ({ layers: serverLayers }: { layers: LayerData[] }) => {
       setLayers(serverLayers)
     })
-    socket.on('version:saved', ({ version }: { version: any }) => {
-      setVersions(prev => [{ ...version, createdAt: new Date(version.createdAt).toISOString() }, ...prev])
+    socket.on('version:saved', ({ version }: { version: VersionData }) => {
+      setVersions(prev => [{ ...version, createdAt: new Date(version.createdAt as string).toISOString() }, ...prev])
     })
     socket.on('version:reverted', ({ canvasState }: { canvasState: string }) => {
       try { setCanvasElements(JSON.parse(canvasState)) } catch {}
     })
-    socket.on('chat:message', (message: any) => {
-      setChat(prev => [...prev, { ...message, createdAt: new Date(message.createdAt).toISOString() }])
+    socket.on('chat:message', (message: ChatMessage) => {
+      setChat(prev => [...prev, { ...message, createdAt: new Date(message.createdAt as string).toISOString() }])
     })
     socket.on('disconnect', () => setIsConnected(false))
 

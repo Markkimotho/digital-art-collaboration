@@ -1,6 +1,7 @@
 'use client'
 
 import React, { useState } from 'react'
+import Link from 'next/link'
 import { Menu, X, Link2, Home, Check } from 'lucide-react'
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger, SheetClose } from '@/components/ui/sheet'
 import { motion } from 'framer-motion'
@@ -79,7 +80,7 @@ export default function HamburgerMenu({ roomId, onOpenChange }: HamburgerMenuPro
           )}
 
           <SheetClose asChild>
-            <a
+            <Link
               href="/"
               className="
                 flex items-center gap-3 w-full px-3 py-2.5 rounded-xl text-sm
@@ -88,7 +89,7 @@ export default function HamburgerMenu({ roomId, onOpenChange }: HamburgerMenuPro
             >
               <Home className="h-4 w-4 flex-shrink-0" />
               Back to lobby
-            </a>
+            </Link>
           </SheetClose>
         </div>
 

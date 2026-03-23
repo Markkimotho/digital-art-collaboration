@@ -1,0 +1,16 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: sketchbook
+  namespace: sketchbook
+spec:
+  selector:
+    app: sketchbook
+  ports:
+    - name: http
+      port: 80
+      targetPort: 3000
+      protocol: TCP
+  # ClusterIP is used when you have an Ingress controller handling external traffic (recommended).
+  # Change to LoadBalancer if you want a direct cloud load balancer IP without an Ingress.
+  type: ClusterIP

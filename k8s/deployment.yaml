@@ -1,0 +1,62 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: sketchbook
+  namespace: sketchbook
+  labels:
+    app: sketchbook
+spec:
+  # Keep at 1 — SQLite does not support concurrent writers across pods.
+  # Scale horizontally only after migrating to PostgreSQL.
+  replicas: 1
+  selector:
+    matchLabels:
+      app: sketchbook
+  strategy:
+    # Recreate ensures the old pod releases the SQLite file before the new one starts.
+    type: Recreate
+  template:
+    metadata:
+      labels:
+        app: sketchbook
+    spec:
+      containers:
+        - name: sketchbook
+          # Replace with your image after pushing to a registry:
+          #   docker build -t your-registry/sketchbook:latest .
+          #   docker push your-registry/sketchbook:latest
+          image: your-registry/sketchbook:latest
+          imagePullPolicy: Always
+          ports:
+            - containerPort: 3000
+              name: http
+          envFrom:
+            - configMapRef:
+                name: sketchbook-config
+          volumeMounts:
+            - name: data
+              mountPath: /app/prisma
+          resources:
+            requests:
+              cpu: "250m"
+              memory: "256Mi"
+            limits:
+              cpu: "1000m"
+              memory: "512Mi"
+          livenessProbe:
+            httpGet:
+              path: /api/rooms
+              port: 3000
+            initialDelaySeconds: 20
+            periodSeconds: 30
+            failureThreshold: 3
+          readinessProbe:
+            httpGet:
+              path: /api/rooms
+              port: 3000
+            initialDelaySeconds: 15
+            periodSeconds: 10
+      volumes:
+        - name: data
+          persistentVolumeClaim:
+            claimName: sketchbook-data

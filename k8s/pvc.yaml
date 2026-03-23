@@ -1,0 +1,17 @@
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: sketchbook-data
+  namespace: sketchbook
+spec:
+  # ReadWriteOnce: one pod at a time writes to this volume.
+  # This matches SQLite's single-writer model — keep replicas: 1 in the Deployment.
+  # If you need multiple replicas in the future, migrate to PostgreSQL.
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 2Gi
+  # Remove storageClassName if your cluster has a default storage class,
+  # or replace with your cloud provider's class (e.g. "gp3" on AWS, "standard" on GKE).
+  # storageClassName: standard

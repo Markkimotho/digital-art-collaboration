@@ -1,0 +1,22 @@
+node_modules
+.next
+.git
+.gitignore
+generated
+prisma/dev.db
+
+# Docker files themselves
+Dockerfile
+docker-compose.yml
+k8s/
+
+# Dev artifacts
+*.tsbuildinfo
+npm-debug.log*
+
+# OS
+.DS_Store
+
+# Env files — injected at runtime, never baked into the image
+.env
+.env.*

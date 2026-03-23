@@ -1,185 +1,149 @@
-# Digital Art Collaboration
+# Sketchbook
 
-A real-time collaborative canvas application for creating digital art together. Built with Next.js 15, Socket.io, Prisma, and react-konva.
+A real-time collaborative drawing canvas. Draw together from any device — iPad, tablet, laptop, phone. Supports stylus pens with pressure sensitivity and palm rejection.
+
+Built with Next.js 15, Socket.io, Prisma 7, and react-konva.
+
+---
 
 ## Features
 
-- **Real-time Collaboration**: Multiple users can draw and edit on the same canvas simultaneously using WebSockets
-- **Drawing Tools**: Freehand strokes, shapes, and text elements
-- **Layer Management**: Organized layer system with lock and visibility controls
-- **Version Control**: Save and revert to previous canvas states
-- **Live Chat**: In-room messaging for collaboration
-- **Cursor Tracking**: See other users' cursor positions in real-time
-- **Infinite Canvas**: Pan and zoom support with react-konva
+- Real-time collaboration — see others draw stroke by stroke
+- Pencil, pen, brush, calligraphy, eraser, line, shapes, text, select tools
+- Stylus support — pressure sensitivity, tilt-based calligraphy, palm rejection
+- 6 canvas surfaces: plain, kraft, watercolor, newsprint, parchment, blackboard
+- Gridlines, dot grid, and lined overlays
+- Layer management with lock/visibility controls
+- Version history — save and revert canvas snapshots
+- Live chat per room
+- Infinite canvas with pan and zoom
+- Rustic paper aesthetic
 
-## Tech Stack
+---
 
-- **Frontend**: Next.js 15, React 19, react-konva, Radix UI
-- **Real-time Communication**: Socket.io with WebSocket and polling support
-- **Backend**: Node.js (custom HTTP server with Socket.io integration)
-- **Database**: SQLite with Prisma 7 ORM
-- **Styling**: Tailwind CSS with Framer Motion animations
-- **Drawing**: Konva.js canvas library
-
-## Getting Started
-
-### Prerequisites
-
-- Node.js 18+ with npm
-
-### Installation
+## Run locally
 
 ```bash
-# Clone the repository
-git clone <repository-url>
-cd digital-art-collaboration
-
-# Install dependencies
 npm install
-
-# Generate Prisma client
-npm run db:generate
-```
-
-### Running the Application
-
-```bash
-# Development mode
 npm run dev
 ```
 
-The application will start at `http://localhost:3000`
+Opens at `http://localhost:3000`. Do not use `next dev` — the custom `server.ts` is required for Socket.io.
 
-**Important**: Do not use `next dev`. The application requires the custom `server.ts` which handles Socket.io integration.
+---
 
-### Database Management
+## Docker
 
-```bash
-# Run database migrations
-npm run db:migrate
+**Requirements:** Docker Desktop (or Docker Engine + Compose)
 
-# Open Prisma Studio for database inspection
-npm run db:studio
-```
-
-### Building for Production
+**Build:**
 
 ```bash
-# Build the application
-npm build
-
-# Start the production server
-npm start
+npm run docker:build
+# or: docker build -t sketchbook:latest .
 ```
 
-## Project Structure
+**Run:**
 
-```
-digital-art-collaboration/
-├── app/
-│   ├── api/                    # API routes for room management
-│   ├── room/[roomId]/          # Room collaboration page
-│   ├── layout.tsx              # Root layout
-│   ├── page.tsx                # Home page / room lobby
-│   └── globals.css             # Global styles
-├── components/
-│   ├── CanvasRoom.tsx         # Main collaborative canvas
-│   ├── RoomLobby.tsx          # Room selection/creation
-│   ├── LayerPanel.tsx         # Layer management UI
-│   ├── ToolBar.tsx            # Drawing tools UI
-│   ├── VersionControl.tsx     # Version history UI
-│   └── ...                    # Other UI components
-├── lib/
-│   └── prisma.ts              # Prisma client setup
-├── prisma/
-│   ├── schema.prisma          # Database schema
-│   ├── migrations/            # Database migrations
-│   └── dev.db                 # SQLite database file
-├── types/
-│   └── canvas.ts              # TypeScript type definitions
-├── server.ts                  # Custom HTTP server with Socket.io
-└── package.json
+```bash
+npm run docker:run
+# or: docker compose up
 ```
 
-## Architecture Overview
+Opens at `http://localhost:3000`. Canvas data persists in a named Docker volume (`sketchbook_data`).
 
-### Custom Server
+**Docker versions used:**
 
-The application uses a custom `server.ts` instead of Next.js's default dev server to integrate Socket.io for real-time communication. This server:
+- Base image: `node:22-alpine`
+- Node.js: 22 (LTS)
+- npm: 10
 
-- Handles Next.js request routing
-- Manages Socket.io connections
-- Broadcasts drawing events in real-time
-- Persists canvas state to the database
+---
 
-### Database Schema
+## Get a public link (share with anyone)
 
-**Room**: Collaboration space
-- `id`: Unique room identifier
-- `name`: Room name
-- `canvasState`: JSON representation of all canvas elements
-- `layers`: Associated layers
-- `versions`: Saved version history
-- `chatMessages`: Room chat messages
+There are three ways depending on your setup:
 
-**Layer**: Drawing layers within a room
-- `id`: Layer identifier
-- `name`: Display name
-- `visible`: Toggle visibility
-- `locked`: Prevent edits when locked
-- `order`: Z-index ordering
+### Option 1 — Quick share with ngrok (easiest, no domain needed)
 
-**Version**: Canvas state snapshots
-- `label`: Version description
-- `canvasState`: Complete canvas state at time of save
-- `createdAt`: Timestamp
+Install [ngrok](https://ngrok.com), then while the container is running:
 
-**ChatMessage**: In-room messages
-- `author`: User name
-- `text`: Message content
-- `createdAt`: Timestamp
+```bash
+ngrok http 3000
+```
 
-### Socket.io Events
+ngrok gives you a public HTTPS URL like `https://abc123.ngrok-free.app` that anyone can open. Works instantly, no server needed.
 
-**Room Management**
-- `room:join` - Join a collaboration room
-- `room:state` - Receive initial room state
-- `room:user-joined` - User joined the room
-- `room:user-left` - User left the room
-- `room:user-count` - Current user count
+### Option 2 — VPS / cloud server (self-hosted, permanent)
 
-**Drawing**
-- `draw:stroke-start` - Begin drawing a stroke
-- `draw:stroke-update` - Update stroke in progress
-- `draw:stroke-end` - Complete and persist stroke
-- `draw:shape-add` - Add a shape element
-- `draw:text-add` - Add a text element
-- `draw:element-move` - Move an element
-- `draw:clear` - Clear canvas or specific layer
+1. Spin up a server (DigitalOcean Droplet, Linode, Hetzner, AWS EC2, etc.) — a $6/mo instance is enough
+2. Install Docker on it
+3. Copy your project or clone from git
+4. Run `docker compose up -d`
+5. Point your domain's DNS A record to the server's IP
+6. Set up nginx (or Caddy) as a reverse proxy with SSL
 
-**Layers**
-- `layer:add` - Create a new layer
-- `layer:update` - Modify layer properties
-- `layer:delete` - Remove a layer
-- `layer:updated` - Receive updated layer list
+Example Caddy config (auto HTTPS):
 
-**Versions**
-- `version:save` - Create a version snapshot
-- `version:revert` - Restore from a previous version
-- `version:reverted` - Receive canvas restoration
+```
+sketchbook.yourdomain.com {
+    reverse_proxy localhost:3000
+}
+```
 
-**Chat**
-- `chat:send` - Send a message
-- `chat:message` - Receive a message
+Your public link: `https://sketchbook.yourdomain.com`
 
-**Cursors**
-- `cursor:move` - Broadcast cursor position
-- `cursor:positions` - Receive other users' cursor positions
+### Option 3 — Kubernetes (production, scalable)
 
-## Contributing
+> Note: SQLite requires `replicas: 1`. For multi-replica deployments, migrate to PostgreSQL.
 
-Feel free to submit issues and enhancement requests!
+**Prerequisites:**
 
-## License
+- A Kubernetes cluster (DigitalOcean, GKE, EKS, etc.)
+- `kubectl` configured to point at your cluster
+- nginx-ingress controller installed
+- cert-manager installed for automatic TLS
 
-This project is open source and available under the MIT License.
+**Setup:**
+
+1. Edit [k8s/ingress.yaml](k8s/ingress.yaml) — replace `sketchbook.yourdomain.com` with your domain
+2. Edit [k8s/cert-issuer.yaml](k8s/cert-issuer.yaml) — replace `you@yourdomain.com` with your email
+3. Push your image to a registry (Docker Hub, GHCR, etc.):
+   ```bash
+   docker tag sketchbook:latest yourusername/sketchbook:latest
+   docker push yourusername/sketchbook:latest
+   ```
+4. Update the image field in [k8s/deployment.yaml](k8s/deployment.yaml)
+5. Apply everything:
+   ```bash
+   npm run k8s:apply
+   # or: kubectl apply -f k8s/
+   ```
+6. Point your domain's DNS to the cluster's load balancer IP (`kubectl get svc -n ingress-nginx`)
+
+cert-manager will automatically issue a Let's Encrypt TLS cert. Your public link: `https://sketchbook.yourdomain.com`
+
+**ngrok is the quickest way to test if you just want to share with someone now.** The VPS route is the best long-term option for a permanent public link.
+
+---
+
+## Tech stack
+
+- **Frontend**: Next.js 15, React 19, react-konva (Konva.js), Radix UI, Framer Motion
+- **Real-time**: Socket.io 4 (WebSocket + polling fallback)
+- **Backend**: Node.js 22, custom HTTP server (`server.ts`)
+- **Database**: SQLite via Prisma 7 with `@prisma/adapter-better-sqlite3`
+- **Styling**: Tailwind CSS 3
+- **Container**: Docker (`node:22-alpine`), Docker Compose
+- **Orchestration**: Kubernetes manifests in `k8s/`
+
+---
+
+## Database
+
+```bash
+npm run db:migrate   # run migrations
+npm run db:studio    # open Prisma Studio
+```
+
+SQLite database is stored at `prisma/dev.db` locally, or in a Docker volume / Kubernetes PVC in production.
