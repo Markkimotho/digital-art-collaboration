@@ -40,6 +40,7 @@ export default function CanvasRoom({
   const [brushSize, setBrushSize]       = useState(5)
   const [brushColor, setBrushColor]     = useState('#1a1410')
   const [fontSize, setFontSize]         = useState(24)
+  const [shapeFilled, setShapeFilled]   = useState(true)
 
   // Canvas appearance
   const [canvasType, setCanvasType] = useState<CanvasType>('plain')
@@ -216,6 +217,7 @@ export default function CanvasRoom({
           brushSize={brushSize}
           brushColor={brushColor}
           fontSize={fontSize}
+          shapeFilled={shapeFilled}
           selectedLayer={selectedLayer}
           canvasElements={canvasElements}
           setCanvasElements={setCanvasElements}
@@ -244,6 +246,8 @@ export default function CanvasRoom({
         setBrushColor={setBrushColor}
         fontSize={fontSize}
         setFontSize={setFontSize}
+        shapeFilled={shapeFilled}
+        setShapeFilled={setShapeFilled}
         onClear={handleClearCanvas}
         isConnected={isConnected}
         userCount={userCount}

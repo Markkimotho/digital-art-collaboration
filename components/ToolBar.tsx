@@ -4,6 +4,7 @@ import React, { useState } from 'react'
 import {
   Pencil, Pen, Paintbrush, Eraser, Square, Circle, Hand,
   Minus, Type, MousePointer2, Users, Trash2, Feather,
+  PaintBucket, SquareDashed,
 } from 'lucide-react'
 import { Popover, PopoverTrigger, PopoverContent } from '@/components/ui/popover'
 import { Slider } from '@/components/ui/slider'
@@ -19,6 +20,8 @@ interface ToolBarProps {
   setBrushColor: React.Dispatch<React.SetStateAction<string>>
   fontSize: number
   setFontSize: React.Dispatch<React.SetStateAction<number>>
+  shapeFilled: boolean
+  setShapeFilled: React.Dispatch<React.SetStateAction<boolean>>
   onClear: () => void
   isConnected: boolean
   userCount: number
@@ -60,6 +63,7 @@ export default function ToolBar({
   brushSize, setBrushSize,
   brushColor, setBrushColor,
   fontSize, setFontSize,
+  shapeFilled, setShapeFilled,
   onClear, isConnected, userCount,
   leftNavOpen = false, rightNavOpen = false,
 }: ToolBarProps) {
@@ -105,6 +109,9 @@ export default function ToolBar({
             fontSize={fontSize} setFontSize={setFontSize}
             showText={selectedTool === 'text'}
           />
+          {(selectedTool === 'rectangle' || selectedTool === 'circle') && (
+            <FillToggle filled={shapeFilled} setFilled={setShapeFilled} layout="row" />
+          )}
 
           <div className="w-px h-6 bg-white/10 mx-1" />
           <ClearButton showConfirm={showClearConfirm} onClear={handleClear} />
@@ -138,6 +145,9 @@ export default function ToolBar({
             fontSize={fontSize} setFontSize={setFontSize}
             showText={selectedTool === 'text'}
           />
+          {(selectedTool === 'rectangle' || selectedTool === 'circle') && (
+            <FillToggle filled={shapeFilled} setFilled={setShapeFilled} layout="col" />
+          )}
 
           <div className="h-px w-6 bg-white/10 my-0.5" />
           <ClearButton showConfirm={showClearConfirm} onClear={handleClear} />
@@ -329,5 +339,45 @@ function StatusBadge({ isConnected, userCount }: { isConnected: boolean; userCou
       <Users className="h-3 w-3 text-white/35" strokeWidth={1.8} />
       <span className="text-xs text-white/45 font-medium tabular-nums">{userCount}</span>
     </div>
+  )
+}
+
+function FillToggle({
+  filled, setFilled, layout,
+}: {
+  filled: boolean
+  setFilled: React.Dispatch<React.SetStateAction<boolean>>
+  layout: 'row' | 'col'
+}) {
+  return (
+    <Tooltip>
+      <TooltipTrigger asChild>
+        <motion.button
+          whileHover={{ scale: 1.08 }}
+          whileTap={{ scale: 0.92 }}
+          onClick={() => setFilled(f => !f)}
+          className={`
+            relative p-2 rounded-lg transition-colors
+            min-w-[36px] min-h-[36px] flex items-center justify-center
+            ${filled ? 'text-white' : 'text-white/45 hover:text-white/75 hover:bg-white/5'}
+          `}
+        >
+          {filled && (
+            <motion.div
+              layoutId={`fillActive_${layout}`}
+              className="absolute inset-0 rounded-lg bg-primary/25 border border-primary/35"
+              transition={{ type: 'spring', stiffness: 400, damping: 30 }}
+            />
+          )}
+          {filled
+            ? <PaintBucket className="h-[15px] w-[15px] relative z-10" strokeWidth={1.8} />
+            : <SquareDashed className="h-[15px] w-[15px] relative z-10" strokeWidth={1.8} />
+          }
+        </motion.button>
+      </TooltipTrigger>
+      <TooltipContent side={layout === 'col' ? 'right' : 'bottom'} className="text-xs">
+        {filled ? 'Filled' : 'Outline only'}
+      </TooltipContent>
+    </Tooltip>
   )
 }

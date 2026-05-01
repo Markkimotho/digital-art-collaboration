@@ -32,6 +32,8 @@ export interface ShapeData {
   width: number
   height: number
   color: string
+  filled: boolean      // true = fill, false = stroke outline only
+  strokeWidth: number  // used when filled = false
   layerId: string
   offsetX?: number
   offsetY?: number

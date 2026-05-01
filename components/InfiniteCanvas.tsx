@@ -16,6 +16,7 @@ interface InfiniteCanvasProps {
   brushSize: number
   brushColor: string
   fontSize: number
+  shapeFilled: boolean
   selectedLayer: string
   canvasElements: CanvasElement[]
   setCanvasElements: React.Dispatch<React.SetStateAction<CanvasElement[]>>
@@ -76,11 +77,12 @@ function GridOverlay({ scale, position, stageSize, gridType, dark }: {
   return <Layer listening={false}>{els}</Layer>
 }
 
-// ── Pressure / calligraphy ribbon renderer ───────────────────────────────────
+// ── Brush stroke renderer (painterly filled-path ribbon) ────────────────────
 function RibbonStroke({ stroke }: { stroke: StrokeData }) {
   const pts = stroke.points
   const pressures = stroke.pressures
   const nibAngle = stroke.tiltAngle ?? Math.PI / 4
+  const totalSegs = Math.max(1, (pts.length - 2) / 2)
 
   return (
     <Shape
@@ -89,7 +91,11 @@ function RibbonStroke({ stroke }: { stroke: StrokeData }) {
       listening={false}
       sceneFunc={(ctx) => {
         if (pts.length < 4) return
+        const savedAlpha = ctx.globalAlpha
+        const savedComposite = ctx.globalCompositeOperation
         ctx.globalAlpha = stroke.opacity ?? 1
+        if (stroke.tool === 'eraser') ctx.globalCompositeOperation = 'destination-out'
+        ctx.fillStyle = stroke.tool === 'eraser' ? 'rgba(0,0,0,1)' : stroke.color
 
         for (let i = 0; i < pts.length - 2; i += 2) {
           const x1 = pts[i],     y1 = pts[i + 1]
@@ -99,24 +105,29 @@ function RibbonStroke({ stroke }: { stroke: StrokeData }) {
           if (len < 0.3) continue
 
           let w1: number, w2: number
+          const segIdx = i / 2
 
-          if (pressures && pressures.length > i / 2 + 1) {
-            // Pressure-sensitive: width driven by stylus pressure
-            const p1 = Math.max(0.05, pressures[i / 2]       ?? 0.5)
-            const p2 = Math.max(0.05, pressures[i / 2 + 1]   ?? 0.5)
+          if (pressures && pressures.length > segIdx + 1) {
+            // Stylus pressure → dynamic width
+            const p1 = Math.max(0.05, pressures[segIdx]     ?? 0.5)
+            const p2 = Math.max(0.05, pressures[segIdx + 1] ?? 0.5)
             w1 = stroke.size * p1 * 2.2
             w2 = stroke.size * p2 * 2.2
-          } else {
-            // Calligraphy: width driven by stroke angle vs nib angle
+          } else if (stroke.tool === 'calligraphy') {
+            // Nib angle vs stroke direction → thick/thin contrast
             const strokeAngle = Math.atan2(dy, dx)
             const diff = strokeAngle - nibAngle
             const factor = 0.15 + 0.85 * Math.abs(Math.sin(diff * 2))
             w1 = w2 = Math.max(0.5, stroke.size * factor)
+          } else {
+            // Brush (mouse/touch): taper at stroke ends for a natural look
+            const t = segIdx / totalSegs
+            const taper = 0.55 + 0.45 * Math.sin(Math.PI * t)
+            w1 = w2 = stroke.size * taper
           }
 
           const nx = -dy / len, ny = dx / len
           ctx.beginPath()
-          ctx.fillStyle = stroke.color
           ctx.moveTo(x1 + nx * w1 / 2, y1 + ny * w1 / 2)
           ctx.lineTo(x2 + nx * w2 / 2, y2 + ny * w2 / 2)
           ctx.lineTo(x2 - nx * w2 / 2, y2 - ny * w2 / 2)
@@ -124,14 +135,88 @@ function RibbonStroke({ stroke }: { stroke: StrokeData }) {
           ctx.closePath()
           ctx.fill()
         }
+        ctx.globalAlpha = savedAlpha
+        ctx.globalCompositeOperation = savedComposite
       }}
     />
   )
 }
 
+// ── Pencil stroke renderer (rough multi-pass, sketch texture) ────────────────
+function PencilStroke({ stroke }: { stroke: StrokeData }) {
+  const pts = stroke.points
+  return (
+    <Shape
+      x={stroke.offsetX ?? 0}
+      y={stroke.offsetY ?? 0}
+      listening={false}
+      sceneFunc={(ctx) => {
+        if (pts.length < 4) return
+        ctx.lineCap = 'round'
+        ctx.lineJoin = 'round'
+        ctx.strokeStyle = stroke.color
+        const baseAlpha = stroke.opacity ?? 1
+
+        const drawPass = (jx: number, jy: number, alpha: number, w: number) => {
+          ctx.globalAlpha = alpha * baseAlpha
+          ctx.lineWidth = w
+          ctx.beginPath()
+          ctx.moveTo(pts[0] + jx, pts[1] + jy)
+          for (let i = 2; i < pts.length - 2; i += 2) {
+            const mx = (pts[i] + pts[i + 2]) / 2 + jx
+            const my = (pts[i + 1] + pts[i + 3]) / 2 + jy
+            ctx.quadraticCurveTo(pts[i] + jx, pts[i + 1] + jy, mx, my)
+          }
+          ctx.lineTo(pts[pts.length - 2] + jx, pts[pts.length - 1] + jy)
+          ctx.stroke()
+        }
+
+        // Three overlapping passes: main + two offset ghost lines = pencil grain
+        drawPass(0,    0,    0.60, stroke.size)
+        drawPass(0.6,  0.3,  0.22, stroke.size * 0.65)
+        drawPass(-0.5, 0.55, 0.18, stroke.size * 0.45)
+        ctx.globalAlpha = 1
+      }}
+    />
+  )
+}
+
+// ── Custom SVG cursors ───────────────────────────────────────────────────────
+const _cur = (svg: string, hx: number, hy: number) =>
+  `url("data:image/svg+xml,${encodeURIComponent(svg)}") ${hx} ${hy}, auto`
+
+const TOOL_CURSORS: Record<string, string> = {
+  pencil: _cur(
+    `<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20"><path d="M15 2L18 5 5 18 2 18 3 15Z" fill="#f5f0e0" stroke="#222" stroke-width="1.2" stroke-linejoin="round"/><path d="M13 4L18 5 15 2Z" fill="#d4a4a4" stroke="#555" stroke-width="0.7"/><line x1="13" y1="5" x2="4" y2="16" stroke="#ccc" stroke-width="0.7"/><circle cx="2.5" cy="18" r="1" fill="#333"/></svg>`,
+    2, 18,
+  ),
+  pen: _cur(
+    `<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20"><path d="M16 1L19 4 5 18 1 19 3 15Z" fill="#1a1a1a" stroke="white" stroke-width="1" stroke-linejoin="round"/><line x1="14" y1="3" x2="17" y2="6" stroke="rgba(255,255,255,0.4)" stroke-width="0.8"/><circle cx="2" cy="18" r="1.4" fill="white"/></svg>`,
+    2, 18,
+  ),
+  brush: _cur(
+    `<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20"><line x1="14" y1="1" x2="9" y2="10" stroke="#8b6240" stroke-width="2.5" stroke-linecap="round"/><rect x="7" y="9" width="4" height="3" rx="0.5" fill="#bbb" stroke="#555" stroke-width="0.7"/><path d="M5 12L10 12 7 19Z" fill="#5a3520" stroke="#222" stroke-width="0.8"/><circle cx="7" cy="19" r="1.2" fill="#e04040"/></svg>`,
+    7, 19,
+  ),
+  calligraphy: _cur(
+    `<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20"><line x1="18" y1="2" x2="3" y2="17" stroke="#c8a84b" stroke-width="1.5" stroke-linecap="round"/><path d="M7 13L2 18 4 19 10 15Z" fill="#2a2a2a" stroke="#111" stroke-width="0.8" stroke-linejoin="round"/><circle cx="2.5" cy="18" r="1" fill="#111"/></svg>`,
+    2, 18,
+  ),
+  eraser: _cur(
+    `<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20"><rect x="1" y="5" width="18" height="12" rx="2" fill="#ffbdc5" stroke="#333" stroke-width="1.2"/><rect x="1" y="5" width="8" height="12" rx="2" fill="#ff8fa0"/><line x1="1" y1="16" x2="19" y2="16" stroke="#555" stroke-width="0.8"/></svg>`,
+    10, 11,
+  ),
+  line:      'crosshair',
+  rectangle: 'crosshair',
+  circle:    'crosshair',
+  text:      'text',
+  select:    'default',
+  hand:      'grab',
+}
+
 // ── Main component ────────────────────────────────────────────────────────────
 const InfiniteCanvas: React.FC<InfiniteCanvasProps> = ({
-  selectedTool, brushSize, brushColor, fontSize, selectedLayer,
+  selectedTool, brushSize, brushColor, fontSize, shapeFilled, selectedLayer,
   canvasElements, setCanvasElements,
   cursors, onStrokeStart, onStrokeUpdate, onStrokeEnd,
   onShapeAdd, onTextAdd, onElementMove, onCursorMove,
@@ -144,20 +229,22 @@ const InfiniteCanvas: React.FC<InfiniteCanvasProps> = ({
   const [stageSize, setStageSize] = useState({ width: 800, height: 600 })
 
   // Mutable refs that shadow props — safe to read inside pointer event callbacks
-  const toolRef       = useRef(selectedTool)
-  const colorRef      = useRef(brushColor)
-  const sizeRef       = useRef(brushSize)
-  const layerRef      = useRef(selectedLayer)
-  const fontSizeRef   = useRef(fontSize)
-  const scaleRef      = useRef(scale)
-  const positionRef   = useRef(position)
-  useEffect(() => { toolRef.current     = selectedTool },  [selectedTool])
-  useEffect(() => { colorRef.current    = brushColor },    [brushColor])
-  useEffect(() => { sizeRef.current     = brushSize },     [brushSize])
-  useEffect(() => { layerRef.current    = selectedLayer }, [selectedLayer])
-  useEffect(() => { fontSizeRef.current = fontSize },      [fontSize])
-  useEffect(() => { scaleRef.current    = scale },         [scale])
-  useEffect(() => { positionRef.current = position },      [position])
+  const toolRef         = useRef(selectedTool)
+  const colorRef        = useRef(brushColor)
+  const sizeRef         = useRef(brushSize)
+  const shapeFilledRef  = useRef(shapeFilled)
+  const layerRef        = useRef(selectedLayer)
+  const fontSizeRef     = useRef(fontSize)
+  const scaleRef        = useRef(scale)
+  const positionRef     = useRef(position)
+  useEffect(() => { toolRef.current       = selectedTool },  [selectedTool])
+  useEffect(() => { colorRef.current      = brushColor },    [brushColor])
+  useEffect(() => { sizeRef.current       = brushSize },     [brushSize])
+  shapeFilledRef.current = shapeFilled
+  useEffect(() => { layerRef.current      = selectedLayer }, [selectedLayer])
+  useEffect(() => { fontSizeRef.current   = fontSize },      [fontSize])
+  useEffect(() => { scaleRef.current      = scale },         [scale])
+  useEffect(() => { positionRef.current   = position },      [position])
 
   // Drawing state refs
   const currentStrokeRef      = useRef<StrokeData | null>(null)
@@ -219,11 +306,11 @@ const InfiniteCanvas: React.FC<InfiniteCanvasProps> = ({
   const isStrokeTool = (t: string) =>
     ['brush', 'pencil', 'pen', 'calligraphy', 'eraser', 'line'].includes(t)
 
-  const strokeOpacity = (t: string) => t === 'pencil' ? 0.72 : 1
-  const strokeSizeMultiplier = (t: string) => t === 'pen' ? 0.6 : t === 'pencil' ? 0.8 : 1
+  const strokeOpacity = (t: string) => t === 'pencil' ? 0.42 : 1
+  const strokeSizeMultiplier = (t: string) => t === 'pen' ? 0.38 : t === 'pencil' ? 0.60 : 1
   const usesPressure = (t: string) => ['brush', 'pencil', 'eraser'].includes(t)
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  const usesRibbon   = (t: string) => ['calligraphy'].includes(t) || usesPressure(t)
+  const usesRibbon   = (t: string) => ['brush', 'calligraphy'].includes(t) || usesPressure(t)
 
   // ── Stroke start ─────────────────────────────────────────────────────────────
   const startStroke = useCallback((
@@ -273,7 +360,10 @@ const InfiniteCanvas: React.FC<InfiniteCanvasProps> = ({
       const shape: ShapeData = {
         id, type: 'shape', tool: tool as 'rectangle' | 'circle',
         x: world.x, y: world.y, width: 0, height: 0,
-        color: colorRef.current, layerId: layerRef.current,
+        color: colorRef.current,
+        filled: shapeFilledRef.current,
+        strokeWidth: sizeRef.current,
+        layerId: layerRef.current,
       }
       setCanvasElements(prev => [...prev, shape])
       isDrawingRef.current = true
@@ -586,11 +676,7 @@ const InfiniteCanvas: React.FC<InfiniteCanvasProps> = ({
   }, [pendingText, textValue, setCanvasElements, onTextAdd])
 
   // ── Cursor style ─────────────────────────────────────────────────────────────
-  const cursor =
-    selectedTool === 'hand'   ? 'grab' :
-    selectedTool === 'eraser' ? 'cell' :
-    selectedTool === 'text'   ? 'text' :
-    selectedTool === 'select' ? 'default' : 'crosshair'
+  const cursor = TOOL_CURSORS[selectedTool] ?? 'crosshair'
 
   // ── Render ───────────────────────────────────────────────────────────────────
   return (
@@ -621,12 +707,15 @@ const InfiniteCanvas: React.FC<InfiniteCanvasProps> = ({
               {elements.map((el) => {
                 if (el.type === 'stroke') {
                   const s = el as StrokeData
-                  // Ribbon renderer for calligraphy and pressure-sensitive strokes
-                  if (s.tool === 'calligraphy' || (s.pressures && s.pressures.length > 0)) {
-                    return (
-                      <RibbonStroke key={s.id} stroke={s} />
-                    )
+                  // Brush / calligraphy / stylus-with-pressure → filled ribbon
+                  if (s.tool === 'brush' || s.tool === 'calligraphy' || (s.pressures && s.pressures.length > 0)) {
+                    return <RibbonStroke key={s.id} stroke={s} />
                   }
+                  // Pencil → multi-pass sketchy renderer
+                  if (s.tool === 'pencil') {
+                    return <PencilStroke key={s.id} stroke={s} />
+                  }
+                  // Pen / eraser (mouse) / line → Konva Line primitive
                   return (
                     <Line
                       key={s.id}
@@ -636,7 +725,7 @@ const InfiniteCanvas: React.FC<InfiniteCanvasProps> = ({
                       stroke={s.color}
                       strokeWidth={s.size}
                       opacity={s.opacity ?? 1}
-                      tension={s.tool === 'pen' || s.tool === 'line' ? 0 : 0.4}
+                      tension={s.tool === 'pen' || s.tool === 'line' ? 0 : 0.3}
                       lineCap="round"
                       lineJoin="round"
                       globalCompositeOperation={s.tool === 'eraser' ? 'destination-out' : 'source-over'}
@@ -659,7 +748,13 @@ const InfiniteCanvas: React.FC<InfiniteCanvasProps> = ({
                     return (
                       <Rect key={sh.id}
                         x={sh.x + (sh.offsetX ?? 0)} y={sh.y + (sh.offsetY ?? 0)}
-                        width={sh.width} height={sh.height} fill={sh.color} cornerRadius={2}
+                        width={sh.width} height={sh.height}
+                        fill={sh.color}
+                        fillEnabled={sh.filled}
+                        stroke={sh.color}
+                        strokeWidth={sh.filled ? 0 : (sh.strokeWidth ?? 2)}
+                        strokeEnabled={!sh.filled}
+                        cornerRadius={2}
                         draggable={selectedTool === 'select' && !layer.locked}
                         onDragEnd={(e) => {
                           const nx = sh.x + (sh.offsetX ?? 0) + e.target.x()
@@ -675,11 +770,17 @@ const InfiniteCanvas: React.FC<InfiniteCanvasProps> = ({
                   }
                   if (sh.tool === 'circle') {
                     const r = Math.max(Math.abs(sh.width), Math.abs(sh.height)) / 2
+                    if (r < 1) return null
                     return (
                       <KonvaCircle key={sh.id}
                         x={sh.x + sh.width / 2 + (sh.offsetX ?? 0)}
                         y={sh.y + sh.height / 2 + (sh.offsetY ?? 0)}
-                        radius={r} fill={sh.color}
+                        radius={r}
+                        fill={sh.color}
+                        fillEnabled={sh.filled}
+                        stroke={sh.color}
+                        strokeWidth={sh.filled ? 0 : (sh.strokeWidth ?? 2)}
+                        strokeEnabled={!sh.filled}
                         draggable={selectedTool === 'select' && !layer.locked}
                         onDragEnd={(e) => {
                           const cx = sh.x + sh.width / 2 + (sh.offsetX ?? 0) + e.target.x()

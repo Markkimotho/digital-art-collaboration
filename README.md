@@ -25,10 +25,13 @@ Built with Next.js 15, Socket.io, Prisma 7, and react-konva.
 
 ```bash
 npm install
+npm run db:generate   # generate Prisma client (required on first run)
 npm run dev
 ```
 
 Opens at `http://localhost:3000`. Do not use `next dev` — the custom `server.ts` is required for Socket.io.
+
+> **Note:** The server auto-bootstraps the SQLite database on first start by applying any pending migration SQL, so `prisma migrate dev` is not required for local development.
 
 ---
 
@@ -141,9 +144,41 @@ cert-manager will automatically issue a Let's Encrypt TLS cert. Your public link
 
 ## Database
 
+Prisma client is generated to `generated/prisma/` (configured in `prisma/schema.prisma`).
+
 ```bash
-npm run db:migrate   # run migrations
-npm run db:studio    # open Prisma Studio
+npm run db:generate  # generate Prisma client from schema
+npm run db:migrate   # create and apply a new migration
+npm run db:studio    # open Prisma Studio GUI
 ```
 
 SQLite database is stored at `prisma/dev.db` locally, or in a Docker volume / Kubernetes PVC in production.
+
+### Schema
+
+| Model | Description |
+|---|---|
+| `Room` | A shared canvas session with persistent canvas state |
+| `Layer` | Named layers per room with lock/visibility state |
+| `Version` | Labelled canvas snapshots for version history |
+| `ChatMessage` | Per-room chat messages |
+
+---
+
+## Socket.io events
+
+| Event | Direction | Description |
+|---|---|---|
+| `room:join` | client → server | Join a room by ID with a display name |
+| `room:state` | server → client | Full room state on join (canvas, layers, versions, chat) |
+| `room:user-joined` | server → clients | Notifies others when a user joins |
+| `room:user-count` | server → client | Current user count in the room |
+| `draw:stroke-start` | client ↔ server | Broadcast stroke start to other users |
+| `draw:stroke-update` | client ↔ server | Broadcast incremental stroke points |
+| `draw:stroke-end` | client ↔ server | Finalise stroke and persist to DB |
+| `canvas:clear` | client ↔ server | Clear the canvas for all users |
+| `cursor:move` | client ↔ server | Broadcast live cursor position |
+| `layer:update` | client ↔ server | Sync layer changes across users |
+| `version:save` | client → server | Save a named version snapshot |
+| `version:restore` | client → server | Restore canvas to a saved version |
+| `chat:message` | client ↔ server | Send/receive chat messages |
