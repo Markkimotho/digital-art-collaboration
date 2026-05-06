@@ -190,6 +190,23 @@ bootstrapDb().then(() => app.prepare()).then(() => {
       }
     })
 
+    socket.on('draw:delete', async ({ roomId, elementIds }: { roomId: string; elementIds: string[] }) => {
+      socket.to(roomId).emit('draw:delete', { elementIds })
+      try {
+        const room = await prisma.room.findUnique({ where: { id: roomId } })
+        if (room) {
+          const currentState: any[] = JSON.parse(room.canvasState || '[]')
+          const filtered = currentState.filter((el: any) => !elementIds.includes(el.id))
+          await prisma.room.update({
+            where: { id: roomId },
+            data: { canvasState: JSON.stringify(filtered) },
+          })
+        }
+      } catch (err) {
+        console.error('Error deleting elements:', err)
+      }
+    })
+
     socket.on('cursor:move', ({ roomId, x, y, userName }: { roomId: string; x: number; y: number; userName: string }) => {
       if (!roomCursors.has(roomId)) roomCursors.set(roomId, new Map())
       roomCursors.get(roomId)!.set(socket.id, { userName, x, y })

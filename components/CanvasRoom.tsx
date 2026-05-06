@@ -59,6 +59,7 @@ export default function CanvasRoom({
   const [versions, setVersions] = useState<VersionData[]>(initialVersions)
   const [chat, setChat]         = useState<ChatMessage[]>(initialChat)
   const [cursors, setCursors]   = useState<CursorData[]>([])
+  const [selectedElementIds, setSelectedElementIds] = useState<string[]>([])
 
   // Nav open state — shared with ToolBar so it can shift away
   const [leftNavOpen, setLeftNavOpen]   = useState(false)
@@ -131,6 +132,9 @@ export default function CanvasRoom({
       if (layerId) setCanvasElements(prev => prev.filter(el => el.layerId !== layerId))
       else setCanvasElements([])
     })
+    socket.on('draw:delete', ({ elementIds }: { elementIds: string[] }) => {
+      setCanvasElements(prev => prev.filter(el => !elementIds.includes(el.id)))
+    })
     socket.on('cursor:positions', ({ cursors: incoming }: { cursors: CursorData[] }) => {
       setCursors(prev => {
         const filtered = prev.filter(c => !incoming.find(ic => ic.userId === c.userId))
@@ -175,6 +179,28 @@ export default function CanvasRoom({
   const emitCursorMove   = useCallback((x: number, y: number) => {
     socketRef.current?.emit('cursor:move', { roomId, x, y, userName })
   }, [roomId, userName])
+
+  // Clear selection when switching away from the select tool
+  useEffect(() => {
+    if (selectedTool !== 'select') setSelectedElementIds([])
+  }, [selectedTool])
+
+  const handleElementSelect = useCallback((id: string, addToSelection: boolean) => {
+    if (id === '') { setSelectedElementIds([]); return }
+    setSelectedElementIds(prev => {
+      if (addToSelection) {
+        return prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]
+      }
+      return [id]
+    })
+  }, [])
+
+  const handleElementsDelete = useCallback((ids: string[]) => {
+    if (ids.length === 0) return
+    setCanvasElements(prev => prev.filter(el => !ids.includes(el.id)))
+    socketRef.current?.emit('draw:delete', { roomId, elementIds: ids })
+    setSelectedElementIds([])
+  }, [roomId])
 
   const handleLayerAdd    = useCallback(() => {
     const layer: LayerData = {
@@ -232,6 +258,9 @@ export default function CanvasRoom({
           layers={layers}
           canvasType={canvasType}
           gridType={gridType}
+          selectedElementIds={selectedElementIds}
+          onElementSelect={handleElementSelect}
+          onElementsDelete={handleElementsDelete}
         />
       </div>
 

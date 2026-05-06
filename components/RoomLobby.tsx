@@ -2,8 +2,8 @@
 
 import React, { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
-import { motion } from 'framer-motion'
-import { Plus, ArrowRight, Clock } from 'lucide-react'
+import { motion, AnimatePresence } from 'framer-motion'
+import { Plus, ArrowRight, Clock, Trash2 } from 'lucide-react'
 
 interface RecentRoom {
   id: string
@@ -27,6 +27,7 @@ export default function RoomLobby() {
   const [isCreating, setIsCreating] = useState(false)
   const [joinId, setJoinId] = useState('')
   const [recentRooms, setRecentRooms] = useState<RecentRoom[]>([])
+  const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null)
 
   useEffect(() => {
     fetch('/api/rooms')
@@ -54,6 +55,18 @@ export default function RoomLobby() {
     const id = joinId.trim()
     if (!id) return
     router.push(`/room/${id}`)
+  }
+
+  const deleteRoom = async (roomId: string, e: React.MouseEvent) => {
+    e.stopPropagation()
+    if (confirmDeleteId !== roomId) {
+      setConfirmDeleteId(roomId)
+      setTimeout(() => setConfirmDeleteId(id => id === roomId ? null : id), 2500)
+      return
+    }
+    setConfirmDeleteId(null)
+    setRecentRooms(prev => prev.filter(r => r.id !== roomId))
+    await fetch(`/api/rooms/${roomId}`, { method: 'DELETE' }).catch(() => {})
   }
 
   const containerVariants = {
@@ -165,25 +178,45 @@ export default function RoomLobby() {
             <p className="text-xs text-white/35 uppercase tracking-wider mb-3 px-1">Recent</p>
             <div className="flex flex-col gap-1">
               {recentRooms.slice(0, 5).map((room) => (
-                <motion.button
-                  key={room.id}
-                  whileHover={{ x: 2 }}
-                  onClick={() => router.push(`/room/${room.id}`)}
-                  className="flex items-center justify-between px-3 py-2.5 rounded-xl hover:bg-white/6 transition-colors group text-left w-full"
-                >
-                  <div className="flex items-center gap-2.5 min-w-0">
-                    <div className="w-6 h-6 rounded-lg bg-primary/15 flex items-center justify-center flex-shrink-0">
-                      <div className="w-2 h-2 rounded-sm bg-primary/60" />
+                <div key={room.id} className="relative group flex items-center">
+                  <motion.button
+                    whileHover={{ x: 2 }}
+                    onClick={() => router.push(`/room/${room.id}`)}
+                    className="flex-1 flex items-center justify-between px-3 py-2.5 rounded-xl hover:bg-white/6 transition-colors text-left"
+                  >
+                    <div className="flex items-center gap-2.5 min-w-0">
+                      <div className="w-6 h-6 rounded-lg bg-primary/15 flex items-center justify-center flex-shrink-0">
+                        <div className="w-2 h-2 rounded-sm bg-primary/60" />
+                      </div>
+                      <span className="text-sm text-white/65 group-hover:text-white/85 truncate transition-colors">
+                        {room.name}
+                      </span>
                     </div>
-                    <span className="text-sm text-white/65 group-hover:text-white/85 truncate transition-colors">
-                      {room.name}
-                    </span>
-                  </div>
-                  <div className="flex items-center gap-1.5 flex-shrink-0 ml-2">
-                    <Clock className="h-3 w-3 text-white/25" />
-                    <span className="text-xs text-white/30">{timeAgo(room.updatedAt)}</span>
-                  </div>
-                </motion.button>
+                    <div className="flex items-center gap-1.5 flex-shrink-0 ml-2 mr-6">
+                      <Clock className="h-3 w-3 text-white/25" />
+                      <span className="text-xs text-white/30">{timeAgo(room.updatedAt)}</span>
+                    </div>
+                  </motion.button>
+
+                  {/* Delete button */}
+                  <AnimatePresence>
+                    <motion.button
+                      initial={{ opacity: 0 }}
+                      animate={{ opacity: 1 }}
+                      onClick={(e) => deleteRoom(room.id, e)}
+                      title={confirmDeleteId === room.id ? 'Click again to confirm delete' : 'Delete canvas'}
+                      className={`
+                        absolute right-1 p-1.5 rounded-lg transition-colors
+                        opacity-0 group-hover:opacity-100
+                        ${confirmDeleteId === room.id
+                          ? 'bg-red-500/20 text-red-400 hover:bg-red-500/30 opacity-100'
+                          : 'hover:bg-white/8 text-white/30 hover:text-red-400'}
+                      `}
+                    >
+                      <Trash2 className="h-3.5 w-3.5" />
+                    </motion.button>
+                  </AnimatePresence>
+                </div>
               ))}
             </div>
           </motion.div>
